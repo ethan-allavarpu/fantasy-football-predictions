@@ -1,0 +1,136 @@
+---
+title: "STATS 199 Preliminary Data Analysis"
+author: 'Ethan Allavarpu (UID: 405287603)'
+date: "1/5/2021"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+```
+
+```{r}
+ff_scores <- list()
+length(ff_scores) <- 11
+names(ff_scores) <- 2010:2020
+for (i in seq_along(ff_scores)) {
+  ff_data <- read.csv(paste(names(ff_scores)[i], ".csv", sep = ""),
+                             header = TRUE)
+  ## Clean player names (remove punctuation after names)
+  players <- ff_data$Player
+  split_names <- strsplit(players, "[+\\*\\#]")
+  get_name <- function(player) {
+    player[1]
+  }
+  clean_names <- vapply(split_names, get_name, character(1))
+  ff_data$Player <- clean_names
+  ## Make team and position factors
+  ff_data$Tm <- factor(ff_data$Tm)
+  ff_data$FantPos <- factor(ff_data$FantPos)
+  ## Remove players without a position (no pattern after investigation)
+  no_pos <- ff_data$FantPos == ""
+  ff_data <- ff_data[!no_pos, ]
+  ## Make variable names clearer
+  names(ff_data) <- c("rk", "player", "team", "position", "age", "games",
+                      "games_started", "pass_comp", "pass_att", "pass_yd",
+                      "pass_td", "interceptions", "rush_att", "rush_yd",
+                      "rush_yd_per_att", "rush_td", "tgt", "rec", "rec_yd",
+                      "rec_yd_per_rec", "rec_td", "fmb", "fmb_lst",
+                      "rush_rec_td", "two_pt_made", "two_pt_pass", "fant_pt",
+                      "ppr", "draft_king_pts", "fan_duel_pts", "vbd",
+                      "position_rk", "overall_rk")
+  ## Only worried about PPR--can remove regular, draft kings, fan duel
+  ff_data <- ff_data %>% select(rk:two_pt_pass, ppr, vbd:overall_rk)
+  ## Consider typical thresholds by position
+  ## QB: top 32 (+ 8 for injury), RB: top 64 (+ 16 for injury)
+  ## WR: top 80 (+ 20 for injury), TE: top 48 (+ 12 for injury)
+  pos <- c("QB", "RB", "WR", "TE")
+  numbers_per_pos <- c(0, 32 + 8, 64 + 16, 80 + 20, 48 + 12)
+  indices_to_keep <- numeric(sum(numbers_per_pos))
+  for (j in seq_along(pos)) {
+    pos_subset <- ff_data %>% filter(position == pos[j])
+    number_allowed <- numbers_per_pos[j + 1]
+    best_at_pos <- pos_subset$position_rk <= number_allowed
+    indices_to_keep[seq(from = 1 + sum(numbers_per_pos[1:j]),
+                        length.out = number_allowed)] <- pos_subset$rk[best_at_pos]
+  }
+  ff_data <- ff_data[indices_to_keep, ]
+  ## Players should have also averaged at least 2 points per game (in PPR) (32 total)
+  ff_data <- filter(ff_data, ppr >= 32)
+  ## Remove weaker player with same name
+  ## Lower in the ranks are less important (not valuable for predictions)
+  same_name <- duplicated(ff_data$player)
+  ff_data <- ff_data[!same_name, ]
+  ff_data <- ff_data[order(ff_data$player), ]
+  ff_scores[[i]] <- ff_data
+}
+lapply(ff_scores, head)
+```
+
+
+```{r}
+## Add in next year's fantasy points (PPR)
+## Only include players from current year if played subsequent year
+for (i in 1:10) {
+  this_year <- ff_scores[[i]]
+  next_year <- ff_scores[[i + 1]]
+  valid_player_this_year <- this_year$player %in% next_year$player
+  this_year <- this_year[valid_player_this_year, ]
+  valid_player_next_year <- next_year$player %in% this_year$player
+  next_year <- next_year[valid_player_next_year, ]
+  if (any(this_year$player != next_year$player)) {
+    print(i)
+    stop("Player names do not match")
+  }
+  this_year$new_ff_scores <- next_year$ppr
+  ff_scores[[i]] <- this_year
+}
+lapply(ff_scores, head)
+```
+
+```{r}
+## Randomly choose 3 of 10 completed data groups (2010 - 2019) as validation/test data
+set.seed(1)
+validation_years <- sample(1:10, size = 3)
+validation_data <- ff_scores[validation_years]
+training_data <- ff_scores[-c(validation_years, 11)]
+test_data <- ff_scores$`2020`
+```
+
+
+```{r}
+## Combine all training data into a single frame (with a year column added)
+ff_train <- cbind(training_data[[1]], "year" = names(training_data)[1])
+for (i in seq(from = 2, to = length(training_data))) {
+  added_year <- cbind(training_data[[i]], "year" = names(training_data)[i])
+  ff_train <- rbind(ff_train, added_year)
+}
+```
+
+
+# Variation by Position
+
+```{r}
+## Split data into position groups (QB, RB, WR, TE)
+pos <- c("QB", "RB", "WR", "TE")
+pos_ff_pts <- list()
+length(pos_ff_pts) <- 4
+names(pos_ff_pts) <- pos
+for (i in seq_along(pos_ff_pts)) {
+  pos_ff_pts[[i]] <- ff_train %>% filter(position == pos[i])
+}
+
+## See what distributions look like
+col_scheme <- rgb(c(0, 0.5, 0, 0), c(0, 0, 0.5, 0), c(0, 0, 0, 0.5), alpha = 0.5)
+par(mfrow = c(2, 2))
+for (i in seq_along(pos_ff_pts)) {
+  hist(pos_ff_pts[[i]]$ppr, col = col_scheme[i],
+       main = paste("PPR Fantasy Points for ", names(pos_ff_pts)[i], sep = ""),
+       xlab = paste("Position: ", names(pos_ff_pts)[i], sep = ""),
+       xlim = range(ff_train$ppr) + c(-25, 25))
+}
+```
+
+
+

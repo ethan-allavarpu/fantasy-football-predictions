@@ -1,0 +1,23 @@
+---
+title: "An In-Depth Approach to Fantasy Football"
+subtitle: "STATS 199, Winter 2021"
+author: 'Ethan Allavarpu (UID: 405287603)'
+date: "19 March 2021"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, comment = NA)
+```
+
+# Abstract
+
+# Introduction
+
+# Preliminary Processing
+
+# Variability by Positions
+
+
+# Links
+
