@@ -16,7 +16,7 @@ length(ff_scores) <- 11
 names(ff_scores) <- 2010:2020
 for (i in seq_along(ff_scores)) {
   ff_data <- read.csv(paste(names(ff_scores)[i], ".csv", sep = ""),
-                             header = TRUE)
+                             header = TRUE, stringsAsFactors = FALSE)
   ## Clean player names (remove punctuation after names)
   players <- ff_data$Player
   split_names <- strsplit(players, "[+\\*\\#]")
@@ -30,7 +30,7 @@ for (i in seq_along(ff_scores)) {
   ff_data$FantPos <- factor(ff_data$FantPos)
   ## Remove players without a position (no pattern after investigation)
   no_pos <- ff_data$FantPos == ""
-  ff_data <- ff_data[!no_pos, ]
+  ff_data <- ff_data[!no_pos, , drop = TRUE]
   ## Make variable names clearer
   names(ff_data) <- c("rk", "player", "team", "position", "age", "games",
                       "games_started", "pass_comp", "pass_att", "pass_yd",
@@ -90,6 +90,102 @@ lapply(ff_scores, head)
 ```
 
 ```{r}
+# Consider NA values
+any_na <- function(x) {
+  any(is.na(x))
+}
+na_probs <- list()
+length(na_probs) <- length(ff_scores)
+names(na_probs) <- names(ff_scores)
+for (i in seq_along(na_probs)) {
+  ff_yr <- ff_scores[[i]]
+  which_vars <- vapply(ff_yr, any_na, logical(1))
+  na_vars <- names(ff_yr)[which_vars]
+  which_obs <- apply(ff_yr, 1, any_na)
+  na_obs <- ff_yr[which_obs, ]
+  na_probs[[i]] <- list("vars" = na_vars,
+                        "obs" = na_obs)
+}
+na_probs
+
+# Rush YPA and Rec YPC NA likely result from 0 yds/0 att/catch
+## Will assign these to 0 for the purposes of analysis
+# Two point attempts little -> NA's likely from 0 values
+# VBD, overall_rk NA discussed after the rest of these are adjusted
+first_na_vars <- c("rush_yd_per_att", "rec_yd_per_rec",
+                   "two_pt_made", "two_pt_pass")
+for (i in seq_along(ff_scores)) {
+  ff_year <- ff_scores[[i]]
+  for (j in seq_along(first_na_vars)) {
+    na_vars <- ff_year[, first_na_vars[j]]
+    if (any_na(na_vars)) {
+      na_vars[is.na(na_vars)] <- 0
+    }
+    ff_year[, first_na_vars[j]] <- na_vars
+  }
+  ff_scores[[i]] <- ff_year
+}
+
+na_probs <- list()
+length(na_probs) <- length(ff_scores)
+names(na_probs) <- names(ff_scores)
+for (i in seq_along(na_probs)) {
+  ff_yr <- ff_scores[[i]]
+  which_vars <- vapply(ff_yr, any_na, logical(1))
+  na_vars <- names(ff_yr)[which_vars]
+  which_obs <- apply(ff_yr, 1, any_na)
+  na_obs <- ff_yr[which_obs, ]
+  na_probs[[i]] <- list("vars" = na_vars,
+                        "obs" = na_obs)
+}
+na_probs
+```
+
+```{r}
+# Look at vbd and overall_rk NA values
+vbd_na <- matrix(NA, nrow = 2, ncol = length(ff_scores))
+colnames(vbd_na) <- names(ff_scores)
+row.names(vbd_na) <- c("vbd na", "obs")
+for (i in seq_along(ff_scores)) {
+  ff_focus <- ff_scores[[i]]
+  vbd_nas <- sum(is.na(ff_focus$vbd))
+  obs <- nrow(ff_focus)
+  vbd_na[1:2, i] <- c(vbd_nas, obs)
+}
+vbd_na
+
+rk_na <- matrix(NA, nrow = 2, ncol = length(ff_scores))
+colnames(rk_na) <- names(ff_scores)
+row.names(rk_na) <- c("rk na", "obs")
+for (i in seq_along(ff_scores)) {
+  ff_focus <- ff_scores[[i]]
+  rk_nas <- sum(is.na(ff_focus$overall_rk))
+  obs <- nrow(ff_focus)
+  rk_na[1:2, i] <- c(rk_nas, obs)
+}
+rk_na
+
+# Remove vbd and overall_rk because based on regular scoring (not PPR)
+for (i in seq_along(ff_scores)) {
+  ff_date <- ff_scores[[i]]
+  new_ff_date <- ff_date[, !(names(ff_date) %in% c("vbd", "overall_rk"))]
+  ff_scores[[i]] <- new_ff_date
+}
+```
+
+```{r}
+# Fix issue w/ NA level in position factor
+for (i in seq_along(ff_scores)) {
+  dat <- ff_scores[[i]]
+  pos_fac <- dat$position
+  pos_fac <- droplevels(pos_fac)
+  dat$position <- pos_fac
+  ff_scores[[i]] <- dat
+}
+```
+
+
+```{r}
 ## Randomly choose 3 of 10 completed data groups (2010 - 2019) as validation/test data
 set.seed(1)
 validation_years <- sample(1:10, size = 3)
@@ -132,5 +228,76 @@ for (i in seq_along(pos_ff_pts)) {
 }
 ```
 
+```{r}
+boxplot(ppr ~ position, data = ff_train)
+```
+
+```{r}
+library(car)
+small_df <- ff_train %>% select(ppr, position)
+equal_var <- leveneTest(ppr ~ position, data = small_df)
+equal_var
+for (i in 1:4) {
+  for (j in (i:4)) {
+    if (i == j) {next}
+    i_pos <- small_df$position == levels(small_df$position)[i]
+    j_pos <- small_df$position == levels(small_df$position)[j]
+    either_pos <- i_pos | j_pos
+    filtered_data <- small_df[either_pos, ]
+    pair_var <- leveneTest(ppr ~ position, data = filtered_data)
+    p_val <- pair_var$`Pr(>F)`[1]
+    significant <- p_val < 0.05 / 6
+    cat(levels(small_df$position)[i], " vs. ",
+        levels(small_df$position)[j], ":",
+        "\n", p_val, "\n", "significant?: ", significant,
+        "\n", sep = "")
+  }
+}
+with(small_df, tapply(ppr, position, var))
+```
+
+QB appears to be the most variable position from this preliminary test, but we must look further into *why* this may be the case.
+
+Consider a 12-team league in which the following is a team's starting lineup:
+
+  - 1 QB
+  - 2 RB
+  - 2 WR
+  - 1 TE
+  - In addition to the above positions, there are three additional spots:
+    - 1 FLEX (RB, WR, or TE)
+    - 1 D/ST (not analyzed)
+    - 1 K (not analyzed)
+  
+```{r}
+start_qbs <- filter(ff_train, position == "QB", position_rk <= 12)
+start_rbs <- filter(ff_train, position == "RB", position_rk <= 24)
+start_wrs <- filter(ff_train, position == "WR", position_rk <= 30)
+start_tes <- filter(ff_train, position == "TE", position_rk <= 12)
+start_ff_train <- rbind(start_qbs, start_rbs, start_wrs, start_tes)
+
+library(car)
+small_df <- start_ff_train %>% select(ppr, position)
+equal_var <- leveneTest(ppr ~ position, data = small_df)
+equal_var
+for (i in 1:4) {
+  for (j in (i:4)) {
+    if (i == j) {next}
+    i_pos <- small_df$position == levels(small_df$position)[i]
+    j_pos <- small_df$position == levels(small_df$position)[j]
+    either_pos <- i_pos | j_pos
+    filtered_data <- small_df[either_pos, ]
+    pair_var <- leveneTest(ppr ~ position, data = filtered_data)
+    p_val <- pair_var$`Pr(>F)`[1]
+    significant <- p_val < 0.05 / 6
+    cat(levels(small_df$position)[i], " vs. ",
+        levels(small_df$position)[j], ":",
+        "\n", p_val, "\n", "significant?: ", significant,
+        "\n", sep = "")
+  }
+}
+with(small_df, tapply(ppr, position, var))
+```
 
 
+***What do we do if the groups have unequal variance but none of the pairwise comparisons show significance?***
