@@ -18,6 +18,14 @@ knitr::opts_chunk$set(echo = TRUE, comment = NA)
 
 # Variability by Positions
 
+# Predicting Future Results
+
+# Further Analysis
+While I have performed a strong amount of analysis from the given data site (profootballreference.com), there still exist some gaps in my analysis which could demonstrate improvement and expansion.
+
+In my predictive analysis, I considered a player's performance in the season prior in order to predict his performance in the subsequent season. While this style of analysis accounts for most of the variability, it does not account for sustained performance over time. This issue becomes prevalent when a strong player suffers an injury that leaves him sidelined for most of (or the entirety of) the season (such as Christian McCaffrey or Saquon Barkley during the 2020 NFL season), leaving little-to-no data for the next season. However, intuition tells us that these players would likely play well next season. In subsequent analyses, I would consider some aspect of time-series analysis *(1)* to account for season-by-season improvement and *(2)* to help lessen the impact of an injury in a given season.
+
+Another instance in which predictions become impossible with my model is for incoming rookies (first-year NFL players). These players may have played exceptionally in college, but it is difficult to account for a potential drop off in performance as a result of a new league as well as stronger competition, which is why I based my predictions on prior performance *in the NFL*. Unfortunately, as a result of this decision, I cannot predict the performance of rookies for the upcoming seasons.
 
 # Links
 

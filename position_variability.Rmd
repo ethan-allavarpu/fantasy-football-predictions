@@ -1,0 +1,96 @@
+---
+title: "Position Variability"
+author: 'Ethan Allavarpu (UID: 405287603)'
+date: "1/5/2021"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+```
+
+```{r}
+source("data_readin_clean.R")
+```
+
+# Variation by Position
+```{r}
+## See what distributions look like
+col_scheme <- rgb(c(0, 0.5, 0, 0), c(0, 0, 0.5, 0), c(0, 0, 0, 0.5), alpha = 0.5)
+par(mfrow = c(2, 2))
+for (i in seq_along(pos_ff_pts)) {
+  hist(pos_ff_pts[[i]]$ppr, col = col_scheme[i],
+       main = paste("PPR Fantasy Points for ", names(pos_ff_pts)[i], sep = ""),
+       xlab = paste("Position: ", names(pos_ff_pts)[i], sep = ""),
+       xlim = range(ff_train$ppr) + c(-25, 25))
+}
+```
+
+```{r}
+boxplot(ppr ~ position, data = ff_train)
+```
+
+```{r}
+library(car)
+small_df <- ff_train %>% select(ppr, position)
+equal_var <- leveneTest(ppr ~ position, data = small_df)
+equal_var
+for (i in 1:4) {
+  for (j in (i:4)) {
+    if (i == j) {next}
+    i_pos <- small_df$position == levels(small_df$position)[i]
+    j_pos <- small_df$position == levels(small_df$position)[j]
+    either_pos <- i_pos | j_pos
+    filtered_data <- small_df[either_pos, ]
+    pair_var <- leveneTest(ppr ~ position, data = filtered_data)
+    p_val <- pair_var$`Pr(>F)`[1]
+    significant <- p_val < 0.05 / 6
+    cat(levels(small_df$position)[i], " vs. ",
+        levels(small_df$position)[j], ":",
+        "\n", p_val, "\n", "significant?: ", significant,
+        "\n", sep = "")
+  }
+}
+with(small_df, tapply(ppr, position, var))
+```
+
+QB appears to be the most variable position from this preliminary test, but we must look further into *why* this may be the case.
+
+Consider a 12-team league in which the following is a team's starting lineup:
+
+  - 1 QB
+  - 2 RB
+  - 2 WR
+  - 1 TE
+  - In addition to the above positions, there are three additional spots:
+    - 1 FLEX (RB, WR, or TE)
+    - 1 D/ST (not analyzed)
+    - 1 K (not analyzed)
+  
+```{r}
+library(car)
+small_df <- start_ff_train %>% select(ppr, position)
+equal_var <- leveneTest(ppr ~ position, data = small_df)
+equal_var
+for (i in 1:4) {
+  for (j in (i:4)) {
+    if (i == j) {next}
+    i_pos <- small_df$position == levels(small_df$position)[i]
+    j_pos <- small_df$position == levels(small_df$position)[j]
+    either_pos <- i_pos | j_pos
+    filtered_data <- small_df[either_pos, ]
+    pair_var <- leveneTest(ppr ~ position, data = filtered_data)
+    p_val <- pair_var$`Pr(>F)`[1]
+    significant <- p_val < 0.05 / 6
+    cat(levels(small_df$position)[i], " vs. ",
+        levels(small_df$position)[j], ":",
+        "\n", p_val, "\n", "significant?: ", significant,
+        "\n", sep = "")
+  }
+}
+with(small_df, tapply(ppr, position, var))
+```
+
+
+***What do we do if the groups have unequal variance but none of the pairwise comparisons show significance?***

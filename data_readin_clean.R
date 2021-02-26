@@ -1,22 +1,10 @@
----
-title: "STATS 199 Preliminary Data Analysis"
-author: 'Ethan Allavarpu (UID: 405287603)'
-date: "1/5/2021"
-output: pdf_document
----
-
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
-library(dplyr)
-```
-
-```{r}
 ff_scores <- list()
 length(ff_scores) <- 11
-names(ff_scores) <- 2010:2020
+years <- 2010:2020
+names(ff_scores) <- paste("year_", 2010:2020, sep = "")
 for (i in seq_along(ff_scores)) {
-  ff_data <- read.csv(paste(names(ff_scores)[i], ".csv", sep = ""),
-                             header = TRUE, stringsAsFactors = FALSE)
+  ff_data <- read.csv(paste(years[i], ".csv", sep = ""),
+                      header = TRUE, stringsAsFactors = FALSE)
   ## Clean player names (remove punctuation after names)
   players <- ff_data$Player
   split_names <- strsplit(players, "[+\\*\\#]")
@@ -42,6 +30,7 @@ for (i in seq_along(ff_scores)) {
                       "position_rk", "overall_rk")
   ## Only worried about PPR--can remove regular, draft kings, fan duel
   ff_data <- ff_data %>% select(rk:two_pt_pass, ppr, vbd:overall_rk)
+  ff_data <- ff_data[, names(ff_data) != "rush_rec_td"] # remove collinearity
   ## Consider typical thresholds by position
   ## QB: top 32 (+ 8 for injury), RB: top 64 (+ 16 for injury)
   ## WR: top 80 (+ 20 for injury), TE: top 48 (+ 12 for injury)
@@ -66,11 +55,7 @@ for (i in seq_along(ff_scores)) {
   ff_scores[[i]] <- ff_data
 }
 lapply(ff_scores, head)
-```
-
-
-```{r}
-## Add in next year's fantasy points (PPR)
+## Add in next year's fantasy points (PPR) and rank
 ## Only include players from current year if played subsequent year
 for (i in 1:10) {
   this_year <- ff_scores[[i]]
@@ -84,12 +69,10 @@ for (i in 1:10) {
     stop("Player names do not match")
   }
   this_year$new_ff_scores <- next_year$ppr
+  this_year$new_rk <- next_year$position_rk
   ff_scores[[i]] <- this_year
 }
 lapply(ff_scores, head)
-```
-
-```{r}
 # Consider NA values
 any_na <- function(x) {
   any(is.na(x))
@@ -110,10 +93,10 @@ na_probs
 
 # Rush YPA and Rec YPC NA likely result from 0 yds/0 att/catch
 ## Will assign these to 0 for the purposes of analysis
-# Two point attempts little -> NA's likely from 0 values
+# Two point attempts, fumbles lost little -> NA's likely from 0 values
 # VBD, overall_rk NA discussed after the rest of these are adjusted
 first_na_vars <- c("rush_yd_per_att", "rec_yd_per_rec",
-                   "two_pt_made", "two_pt_pass")
+                   "two_pt_made", "two_pt_pass", "fmb_lst")
 for (i in seq_along(ff_scores)) {
   ff_year <- ff_scores[[i]]
   for (j in seq_along(first_na_vars)) {
@@ -139,9 +122,6 @@ for (i in seq_along(na_probs)) {
                         "obs" = na_obs)
 }
 na_probs
-```
-
-```{r}
 # Look at vbd and overall_rk NA values
 vbd_na <- matrix(NA, nrow = 2, ncol = length(ff_scores))
 colnames(vbd_na) <- names(ff_scores)
@@ -171,9 +151,6 @@ for (i in seq_along(ff_scores)) {
   new_ff_date <- ff_date[, !(names(ff_date) %in% c("vbd", "overall_rk"))]
   ff_scores[[i]] <- new_ff_date
 }
-```
-
-```{r}
 # Fix issue w/ NA level in position factor
 for (i in seq_along(ff_scores)) {
   dat <- ff_scores[[i]]
@@ -182,122 +159,46 @@ for (i in seq_along(ff_scores)) {
   dat$position <- pos_fac
   ff_scores[[i]] <- dat
 }
-```
-
-
-```{r}
 ## Randomly choose 3 of 10 completed data groups (2010 - 2019) as validation/test data
 set.seed(1)
 validation_years <- sample(1:10, size = 3)
 validation_data <- ff_scores[validation_years]
 training_data <- ff_scores[-c(validation_years, 11)]
-test_data <- ff_scores$`2020`
-```
+test_data <- ff_scores$year_2020
 
-
-```{r}
 ## Combine all training data into a single frame (with a year column added)
 ff_train <- cbind(training_data[[1]], "year" = names(training_data)[1])
 for (i in seq(from = 2, to = length(training_data))) {
   added_year <- cbind(training_data[[i]], "year" = names(training_data)[i])
   ff_train <- rbind(ff_train, added_year)
 }
-```
 
+## Combine all validation data into a single frame (with a year column added)
+ff_validation <- cbind(validation_data[[1]], "year" = names(validation_data)[1])
+for (i in seq(from = 2, to = length(validation_data))) {
+  added_year <- cbind(validation_data[[i]], "year" = names(validation_data)[i])
+  ff_validation <- rbind(ff_validation, added_year)
+}
 
-# Variation by Position
+# Only fantasy-football starting players (and bench spots)
+start_qbs <- filter(ff_train, position == "QB", position_rk <= 24)
+start_rbs <- filter(ff_train, position == "RB", position_rk <= 36)
+start_wrs <- filter(ff_train, position == "WR", position_rk <= 36)
+start_tes <- filter(ff_train, position == "TE", position_rk <= 24)
+start_ff_train <- rbind(start_qbs, start_rbs, start_wrs, start_tes)
 
-```{r}
+# Same for validation data
+start_qbs <- filter(ff_validation, position == "QB", position_rk <= 24)
+start_rbs <- filter(ff_validation, position == "RB", position_rk <= 36)
+start_wrs <- filter(ff_validation, position == "WR", position_rk <= 36)
+start_tes <- filter(ff_validation, position == "TE", position_rk <= 24)
+start_ff_validation <- rbind(start_qbs, start_rbs, start_wrs, start_tes)
+
 ## Split data into position groups (QB, RB, WR, TE)
 pos <- c("QB", "RB", "WR", "TE")
 pos_ff_pts <- list()
 length(pos_ff_pts) <- 4
 names(pos_ff_pts) <- pos
 for (i in seq_along(pos_ff_pts)) {
-  pos_ff_pts[[i]] <- ff_train %>% filter(position == pos[i])
+  pos_ff_pts[[i]] <-  start_ff_train %>% filter(position == pos[i])
 }
-
-## See what distributions look like
-col_scheme <- rgb(c(0, 0.5, 0, 0), c(0, 0, 0.5, 0), c(0, 0, 0, 0.5), alpha = 0.5)
-par(mfrow = c(2, 2))
-for (i in seq_along(pos_ff_pts)) {
-  hist(pos_ff_pts[[i]]$ppr, col = col_scheme[i],
-       main = paste("PPR Fantasy Points for ", names(pos_ff_pts)[i], sep = ""),
-       xlab = paste("Position: ", names(pos_ff_pts)[i], sep = ""),
-       xlim = range(ff_train$ppr) + c(-25, 25))
-}
-```
-
-```{r}
-boxplot(ppr ~ position, data = ff_train)
-```
-
-```{r}
-library(car)
-small_df <- ff_train %>% select(ppr, position)
-equal_var <- leveneTest(ppr ~ position, data = small_df)
-equal_var
-for (i in 1:4) {
-  for (j in (i:4)) {
-    if (i == j) {next}
-    i_pos <- small_df$position == levels(small_df$position)[i]
-    j_pos <- small_df$position == levels(small_df$position)[j]
-    either_pos <- i_pos | j_pos
-    filtered_data <- small_df[either_pos, ]
-    pair_var <- leveneTest(ppr ~ position, data = filtered_data)
-    p_val <- pair_var$`Pr(>F)`[1]
-    significant <- p_val < 0.05 / 6
-    cat(levels(small_df$position)[i], " vs. ",
-        levels(small_df$position)[j], ":",
-        "\n", p_val, "\n", "significant?: ", significant,
-        "\n", sep = "")
-  }
-}
-with(small_df, tapply(ppr, position, var))
-```
-
-QB appears to be the most variable position from this preliminary test, but we must look further into *why* this may be the case.
-
-Consider a 12-team league in which the following is a team's starting lineup:
-
-  - 1 QB
-  - 2 RB
-  - 2 WR
-  - 1 TE
-  - In addition to the above positions, there are three additional spots:
-    - 1 FLEX (RB, WR, or TE)
-    - 1 D/ST (not analyzed)
-    - 1 K (not analyzed)
-  
-```{r}
-start_qbs <- filter(ff_train, position == "QB", position_rk <= 12)
-start_rbs <- filter(ff_train, position == "RB", position_rk <= 24)
-start_wrs <- filter(ff_train, position == "WR", position_rk <= 30)
-start_tes <- filter(ff_train, position == "TE", position_rk <= 12)
-start_ff_train <- rbind(start_qbs, start_rbs, start_wrs, start_tes)
-
-library(car)
-small_df <- start_ff_train %>% select(ppr, position)
-equal_var <- leveneTest(ppr ~ position, data = small_df)
-equal_var
-for (i in 1:4) {
-  for (j in (i:4)) {
-    if (i == j) {next}
-    i_pos <- small_df$position == levels(small_df$position)[i]
-    j_pos <- small_df$position == levels(small_df$position)[j]
-    either_pos <- i_pos | j_pos
-    filtered_data <- small_df[either_pos, ]
-    pair_var <- leveneTest(ppr ~ position, data = filtered_data)
-    p_val <- pair_var$`Pr(>F)`[1]
-    significant <- p_val < 0.05 / 6
-    cat(levels(small_df$position)[i], " vs. ",
-        levels(small_df$position)[j], ":",
-        "\n", p_val, "\n", "significant?: ", significant,
-        "\n", sep = "")
-  }
-}
-with(small_df, tapply(ppr, position, var))
-```
-
-
-***What do we do if the groups have unequal variance but none of the pairwise comparisons show significance?***
