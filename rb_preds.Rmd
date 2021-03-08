@@ -6,7 +6,7 @@ output: pdf_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = FALSE, eval = FALSE)
+knitr::opts_chunk$set(echo = FALSE, eval = TRUE)
 ```
 
 ```{r, eval = TRUE}
@@ -147,9 +147,23 @@ val_mse <- mean((val_preds_lasso - rb_val_rel_vars$new_ff_scores)^2)
 val_mse / total_mse
 rb_mses[4] <- val_mse
 names(rb_mses)[4] <- "lasso"
+## LASSO was best model
+start_rb_test <- start_ff_test %>%
+  mutate(new_ff_scores = 0,
+         rush_ypg = rush_yd / games,
+         rec_ypg = rec_yd / games) %>%
+  filter(position == "RB")
+start_rb_test <- mutate(start_rb_test,
+                        play_style = factor(assigned_cluster(start_rb_test,
+                                                             best_rb_clust),
+                                            levels = c("1", "2", "3", "4", "5", "6"))) %>% select(names(rb_vars))
+
+final_x <- model.matrix(new_ff_scores ~ ., data = start_rb_test)[, -1]
+final_preds <- predict(salary_lasso, final_x, s = lambda_1se)
+
 ridge <- glmnet(train_x, train_y, family = "gaussian",
                        alpha = 0, lambda = lambda_grid, standardize = FALSE)
-ridge_cv<- cv.glmnet(train_x, train_y, family = "gaussian", alpha = 0,
+ridge_cv <- cv.glmnet(train_x, train_y, family = "gaussian", alpha = 0,
                              lambda = lambda_grid, standardize = FALSE,
                              nfolds = 10)
 plot(ridge_cv)
