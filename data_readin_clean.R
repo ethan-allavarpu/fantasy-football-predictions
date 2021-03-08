@@ -29,13 +29,13 @@ for (i in seq_along(ff_scores)) {
                       "ppr", "draft_king_pts", "fan_duel_pts", "vbd",
                       "position_rk", "overall_rk")
   ## Only worried about PPR--can remove regular, draft kings, fan duel
-  ff_data <- ff_data %>% select(rk:two_pt_pass, ppr, vbd:overall_rk)
+  ff_data <- ff_data %>% dplyr::select(rk:two_pt_pass, ppr, vbd:overall_rk)
   ff_data <- ff_data[, names(ff_data) != "rush_rec_td"] # remove collinearity
   ## Consider typical thresholds by position
   ## QB: top 32 (+ 8 for injury), RB: top 64 (+ 16 for injury)
   ## WR: top 80 (+ 20 for injury), TE: top 48 (+ 12 for injury)
   pos <- c("QB", "RB", "WR", "TE")
-  numbers_per_pos <- c(0, 32 + 8, 64 + 16, 80 + 20, 48 + 12)
+  numbers_per_pos <- c(0, 24, 36, 36, 24)
   indices_to_keep <- numeric(sum(numbers_per_pos))
   for (j in seq_along(pos)) {
     pos_subset <- ff_data %>% filter(position == pos[j])
@@ -193,6 +193,13 @@ start_rbs <- filter(ff_validation, position == "RB", position_rk <= 36)
 start_wrs <- filter(ff_validation, position == "WR", position_rk <= 36)
 start_tes <- filter(ff_validation, position == "TE", position_rk <= 24)
 start_ff_validation <- rbind(start_qbs, start_rbs, start_wrs, start_tes)
+
+# Same for test data
+start_qbs <- filter(test_data, position == "QB", position_rk <= 24)
+start_rbs <- filter(test_data, position == "RB", position_rk <= 36)
+start_wrs <- filter(test_data, position == "WR", position_rk <= 36)
+start_tes <- filter(test_data, position == "TE", position_rk <= 24)
+start_ff_test <- rbind(start_qbs, start_rbs, start_wrs, start_tes)
 
 ## Split data into position groups (QB, RB, WR, TE)
 pos <- c("QB", "RB", "WR", "TE")
