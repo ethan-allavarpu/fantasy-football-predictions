@@ -4,12 +4,14 @@ author: "Ethan Allavarpu"
 date: "19 March 2021"
 output:
   pdf_document:
-    df_print: kable
+    toc: true
+    toc_depth: 1
+    number_sections: false
   self-contained: true
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = FALSE, comment = NA)
+knitr::opts_chunk$set(echo = FALSE, comment = NA, fig.align = "center", out.width = "85%")
 options(digits = 4)
 library(knitr)
 library(MASS)
@@ -23,15 +25,18 @@ source("wr_preds.R")
 source("te_preds.R")
 ```
 
+
+\vfill
+
 # Abstract
 
-In this paper, I plan to discuss two main aspects for drafting a fantasy football team. In the first section, I consider the variability present within starter-quality players for each of the main offensive positions--quarterback (QB), running back (RB), wide receiver (WR), and tight end (TE)--determining if there is an inherent strategy at play regarding which position to prioritize. In the second portion, I develop a predictive model to decide a player's potential success regarding fantasy football points based on his statistics from the prior year. For the purposes of both the analysis and thee models, I consider fantasy football leagues that utilize ESPN PPR (point per reception) scoring rules in a 12-team format with the following offensive lineup: 1 QB, 2 RB, 2 WR, 1 TE, and 1 flex position, which can be an additional RB, WR, or TE. In this paper, though, I will omit the influence of the flex position to consider the four positions separately when constructing models.
+In this paper, I plan to discuss two main aspects for drafting a fantasy football team. In the first section, I consider the variability present within starter-quality players for each of the main offensive positions--quarterback (QB), running back (RB), wide receiver (WR), and tight end (TE)--to determine if there is an inherent strategy at play regarding which position to prioritize. In the second portion, I develop a predictive model to decide a player's potential success regarding fantasy football points based on his statistics from the prior year. For the purposes of both the analysis and the models, I consider fantasy football leagues that utilize ESPN PPR (point per reception) scoring rules in a 12-team format with the following offensive lineup: 1 QB, 2 RB, 2 WR, 1 TE, and 1 flex position, which can be an additional RB, WR, or TE. In this paper, though, I will omit the influence of the flex position to consider the four positions independently for model building.
 
 \newpage
 
 # Introduction
 
-Fantasy football captivates many sports fans each season. Whether it is daily fantasy or season-long commitment, managers search for the best players to acquire for their teams in the upcoming NFL season. A variety of different scoring methods exist--from standard to PPR to custom scoring methodologies. While this analysis can be easily adapted to any scoring system, I will limit it to PPR scoring since this tends to be the most common form seen across platforms.
+Fantasy football captivates many sports fans each season. Whether it is daily fantasy or a season-long commitment, managers search for the best players to acquire for their teams in the upcoming NFL season. A variety of different scoring methods exist--from standard to PPR to custom scoring methodologies. While this analysis can be easily adapted to any scoring system, I will limit it to PPR scoring since this tends to be the most common form seen across platforms.
 
 PPR scoring[^1] is an add-on scoring system to the standard scoring system[^2] with the singular difference being that players receive an additional point for each reception made over the course of the season, placing additional weight on the RB, TE, and WR positions.
 
@@ -41,9 +46,11 @@ PPR scoring[^1] is an add-on scoring system to the standard scoring system[^2] w
 
 # Data Collection
 
-I took most of my data from [Pro Football Reference](https://www.pro-football-reference.com/). I gathered .csv files on the performance of NFL players--including statistics as well as fantasy points scored--from the 2010 to 2020 NFL seasons. I chose the 11 most recent seasons because football continuously evolves season after season, so the most recent seasons will look the most similar to the 2021 NFL season, for which I am trying to predict player success. Even 11 seasons is a bit of a stretch--the game in 2019 looked markedly different from that in 2012, but I required the 10 data groupings from 11 seasons due to a need for adequate sample sizes.
+I took most of my data from Pro Football Reference[^10]. I gathered .csv files on the performance of NFL players--including statistics as well as fantasy points scored--from the 2010 to 2020 NFL seasons. I chose the 11 most recent seasons because football continuously evolves season after season, so the most recent seasons will look the most similar to the 2021 NFL season, for which I am trying to predict player success. Even 11 seasons is a bit of a stretch--the game in 2019 looked markedly different from that in 2012, but I required the 10 data groupings from 11 seasons due to a need for adequate sample sizes.
 
-With respect to deciding a cutoff for players to include in my analysis, I utilized the influence of the starting lineup slots as defined in the abstract (1 QB, 2 RB, 2 WR, 1 TE, 1 flex). Now, the flex position is a bit variable (i.e., managers often use bench players with the best matchup), so for determining which players to use, I ignored the influence of the flex spot. This led me to include one player for each opening on a roster, plus an additional player for each position in a bench role. So, when accounting for a 12-team league, I limit the players in my data set to players with the following position rank (i.e., their PPR score rank among players at the same position) in the prior season: top 24 (12 + 12) for QB and TE, and top 36 (24 + 12) for RB and WR. This cutoff exists for both *next year's scores* and *this year's data* to remove players that may have been injured or "fell off a cliff" (i.e., dropped drastically in production): such players would be outliers that would skew my predictions. 
+[^10]: Pro Football Reference: https://www.pro-football-reference.com/
+
+With respect to deciding a cutoff for players to include in my analysis, I utilized the influence of the starting lineup slots as defined in the abstract (1 QB, 2 RB, 2 WR, 1 TE, 1 flex). Now, the flex position is a bit variable (i.e., managers often use bench players with the best matchup), so for determining which players to use, I ignored the influence of the flex spot. This led me to include one player for each opening on a roster, plus an additional player for each position in a bench role. So, when accounting for a 12-team league, I limited the players in my data set to players with the following position rank (i.e., their PPR score rank among players at the same position) in the prior season: top 24 (12 + 12) for QB and TE, and top 36 (24 + 12) for RB and WR. This cutoff existed for both *next year's scores* and *this year's data* to remove players that may have been injured or "fell off a cliff" (i.e., dropped drastically in production): such players would be outliers that would skew my predictions. 
 
 While parsing through the data, I encountered a few edge cases which I had to address. Some players had the same name, making player-matching a little difficult. For the purposes of this analysis, I only included the "best" player with a given name, as it is improbable that there are two high-end players with the same name.
 
@@ -60,7 +67,7 @@ Additionally, there were some features which had `NA` values for a few observati
 
 After cleaning the data appropriately, I wished to look at the variability by position to determine if there is a position which managers should draft first in their leagues. While my second section will help to determine the best players at each individual position, this part serves to tell us if there is a certain position which should be drafted before the others. In a draft, managers have to prioritize which positions to fill first when constructing their rosters, so finding the most variable positions can tell us which positions have the largest drop in performance.
 
-Before conducting significance tests, I first wanted to visualize the data to see if there were any interesting patterns regarding the spread of the data.
+Most managers follow the tenet that they should draft running backs and wide receivers earlier than quarterbacks and tight ends because those two positions are perceived as the "most volatile" (i.e., they have the greatest variance in scores for a given season). Therefore, I have included this section to determine if there is any merit to this belief. Before conducting significance tests, though, I first wanted to visualize the data to see if there were any interesting patterns regarding the spread of the data.
 
 ```{r, fig.height = 5}
 col_scheme <- rgb(c(0, 0.5, 0, 0), c(0, 0, 0.5, 0), c(0, 0, 0, 0.5), alpha = 0.5)
@@ -76,7 +83,7 @@ for (i in seq_along(pos_ff_pts)) {
 
 The above histograms demonstrate the right-skewed nature of PPR scores. Most players will hover around a central point, with a few elite players pushing the boundary and truly separating themselves from the pack. While I can see that, since the x-axis of each histogram is on the same scale, the difference in spread does not seem too drastic between positions, I will need further investigation, which is why I chose to incorporate side-by-side boxplots as well.
 
-```{r, fig.height=4}
+```{r}
 pos_plots <- boxplot(ppr ~ position, data = ff_train,
         col = col_scheme[1:4], main = "Boxplot of Points by Position",
         xlab = "Position", ylab = "PPR", las = 1, cex.axis = 0.75)
@@ -102,16 +109,16 @@ p_val <- equal_var$`Pr(>F)`[1]
 kable(equal_var, caption = "Levene's Test for Homogeneity of Variance")
 ```
 
-The p-value for Levene's test is `r round(p_val, 4)`; since this is greater than the standard significance threshold of $\alpha = 0.05$, I fail to reject the null hypothesis. Therefore, I do not have evidence of different variances between the groups, suggesting that, when filling out my roster, I should go by the projected fantasy points alone (until a position is filled) rather than placing preference on certain positions (as many managers traditionally do with RB and WR). This is not the only viable draft strategy, though; one other method to drafting could be to see which player has the largest difference over the next best available player at a given position (since the variability could very well be the same across all four groups).
+The p-value for Levene's test is `r round(p_val, 4)`; since this is greater than the standard significance threshold of $\alpha = 0.05$, I fail to reject the null hypothesis. Therefore, I do not have evidence of different variances between the groups, suggesting that, when filling out my roster, I should go by the projected fantasy points alone (until a position is filled) rather than placing preference on certain positions (as many managers traditionally do with RB and WR). This is not the only viable draft strategy, though; one other method could be to see which player has the largest difference over the next best available player at a given position (since the variability could very well be the same across all four groups). Again, the purpose of this part of my paper was to show a difference (or lack thereof) in variance, *not* to promote or support a specific draft mindset.
 
 
 \newpage
 
 # Predicting Future Results
 ## Constructing the Models
-To predict next season's fantasy success for each player, I divided my data set into four categories by position (QB, RB, WR, TE), developing a separate model for each. In each instance, I created a training set and a validation set by randomly selecting three years (out of ten) to be combined into a single validation set, while the other seven were treated as my training set. After developing the best model for each position, I will use it to predict next year's fantasy football points for each player in my test data set.
+To predict next season's fantasy success for each player, I divided my data set into four categories by position (QB, RB, WR, TE), developing a separate model for each. In each instance, I created a training set and a validation set by randomly selecting three years (out of ten) to be combined into a single validation set, while the other seven were treated as my training set. After developing the best model for each position, I used it to predict next year's fantasy football points for each player in my test data set.
 
-When predicting future fantasy football success, I ran into a minor limitation at the start of my model construction: a lack of variables. To address this issue, I created a few variables that I believed would display success on a weekly basis, such as passing, rushing, and receiving yards *per game* for each position. I added these variables to help demonstrate efficiency and high-quality production on a weekly basis to complement the consistency shown by cumulative yeaerly totals. In addition to these elements, I incorporated a completion percentage variable ($\frac{\text{completions}}{\text{attempts}}$) for the quarterback that demonstrates how accurate a quarterback was during a given season. After incorporating these additional transformations, I considered my background on football knowledge. Inherently, players tend to cluster together into tiers depending on ability (e.g., elite, good, average) and play style (run-first, pass-first). Therefore, to account for these differences--and thus create a model that has slightly different weights for each group--I performed K-means clustering to divide the training set into clusters. I didn't have a specific number of clusters in mind; rather, I performed clustering using 2 to 25 clusters and made a judgment regarding when the between-cluster sum of squares "leveled off" (i.e., there was not a drastic improvement after adding another cluster).
+When predicting future fantasy football success, I ran into a minor limitation at the start of my model construction: a lack of variables. To address this issue, I created a few variables that I believed would display success on a weekly basis, such as passing, rushing, and receiving yards *per game* for each position. I added these variables to help demonstrate efficiency and high-quality production on a weekly basis to complement the consistency shown by cumulative yearly totals. In addition to these elements, I incorporated a completion percentage variable ($\frac{\text{completions}}{\text{attempts}}$) for the quarterback that demonstrates how accurate a quarterback was during a given season. After incorporating these additional transformations, I considered my background on football knowledge. Inherently, players tend to cluster together into tiers depending on ability (e.g., elite, good, average) and play style (run-first, pass-first). Therefore, to account for these differences--and thus create a model that has slightly different weights for each group--I performed K-means clustering to divide the training set into clusters. I did not have a specific number of clusters in mind; rather, I performed clustering using 2 to 25 clusters and made a judgment regarding when the between-cluster sum of squares "leveled off" (i.e., there was not a drastic improvement after adding another cluster).
 
 After adding the additional variables and features, I constructed a variety of models for predictions, using validation mean-squared error (MSE) in conjunction with plots comparing the validation set predictions to the validation observed values--essentially a residual plot, but for the validation set instead of the training set--to search for the model which provides the best accuracy[^3]. Throughout the process, I considered both different models as well as different transformations: I looked at simple linear regression, multivariate linear regression, bagging models, ridge regression, LASSO, and SVM (support vector machines) for regression to see the best model. I also considered log transformations of both the predictor as well as response variables to better fit a potential non-linear relationship.
 
@@ -134,7 +141,7 @@ plot(obs - val_preds ~ val_preds, data = useful_qb_data,
      col = col_scheme[1], pch = 19, las = 1, cex.axis = 0.75)
 ```
 
-Based on the above plot, it seems like there might be a slight trend in my validation predictions which indicates that I may potentially be missing variable in my model, but on the whole the plot seems alright (and thus generally valid and useful for predictions. With this final model, therefore, the only included variables are pass yards and the prior year's PPR score:
+Based on the above plot, it seems like there might be a slight trend in my validation predictions which indicates that I may potentially be missing variable in my model, but on the whole the plot seems alright (and thus generally valid and useful for predictions). With this final model, therefore, the only included variables are pass yards and the prior year's PPR score:
 
 $$
 \hat{\log(y)}= `r beta_mat[, qb_best$lambda == qb_lambda][beta_mat[, qb_best$lambda == qb_lambda] > 0][1]`(\text{pass yards}) + `r beta_mat[, qb_best$lambda == qb_lambda][beta_mat[, qb_best$lambda == qb_lambda] > 0][2]`(\text{PPR})
@@ -145,13 +152,13 @@ $$
 
 From this model, we can see that, realistically, only two main factors need to be considered for next year's predictions for quarterbacks: their passing yardage total and how many PPR points they scored last year. While these two predictors are not independent (PPR is a linear combination of a variety of other variables), we see that we don't need much more than the basic statistics for a quarterback to predict his future success.
 
-Contextually, quarterbacks do not received as many points for a touchdown pass (4) as running backs and receivers do for a rushing or receiving touchdown (6), so the yardage total proves more important for quarterbacks than other positions. On the whole, this also suggests that passing yards are a more dependable method of continuity than touchdowns, which fit with my prior conception that predictions would more likely be based on variables which are easier to keep at a consistent level over time.
+Contextually, quarterbacks do not received as many points for a touchdown pass (4) as running backs and receivers do for a rushing or receiving touchdown (6), so the yardage total proves more important for quarterbacks than other positions. On the whole, this also suggests that passing yards are a more dependable method of fantasy points than touchdowns, which fit with my prior conception that predictions would more likely be based on variables which are easier to keep at a consistent level over time.
 
 Utilizing this model, I predicted the outcomes for next year's fantasy football leaders based on their results from the 2020 NFL Season:
 
 ```{r}
 final_qb <- read.csv("qb_predictions.csv")[, 2:3]
-kable(head(final_qb, 10), caption = "QB Predictions for Next Year")
+kable(head(final_qb, 10), caption = "QB Predictions for the 2021 NFL Season")
 ```
 
 There are not many surprises in the top 10 for this list, but one major omission would be Lamar Jackson, who has become an elite fantasy quarterback. Lamar Jackson was sidelined by COVID-19 during a few games last season, so he was not able to have the full impact he normal does. However, this could also indicate a shift toward a decline in his production, as his running game may not be as sustainable at the quarterback position.
@@ -174,15 +181,16 @@ varImpPlot(rb_best, n.var = 10, type = 1,
            pch = 19, col = col_scheme[2], cex = 0.75,
            main = "Important Predictors for RB Success")
 ```
-From the above plot, it appears that the most influential feature is the number of games played. This makes sense, as the more games played, the better health a player likely has, implying better performance in the following season. We also see that rushing yards, like passing yards for quarterbacks, has importance in determining success in the following season. It is interesting to note that receiving touchdowns carry more importance than rushing touchdowns, should the need for running backs to be versatile--they need to be able to catch the ball in addition to toting the rock.
 
-That being said, here are the predictions for next season's running backs:
+From the above plot, it appears that the most influential feature is the number of games played. This makes sense, as the more games a player played, the better health he likely has, implying better performance in the following season. We also see that rushing yards, like passing yards for quarterbacks, has importance in determining success in the following season. It is interesting to note that receiving touchdowns carry more importance than rushing touchdowns. This reflects the transition from a pure running back to an all-purpose back: in today's NFL, running backs need to be versatile and adaptable--they need to be able to catch the ball and play a role in the passing game in addition to toting the rock.
+
+Taking these factors into account, here are the predictions for next season's running backs:
 
 ```{r}
 final_rb <- read.csv("rb_predictions.csv")[, 2:3]
-kable(head(final_rb, 10), caption = "RB Predictions for Next Year")
+kable(head(final_rb, 10), caption = "RB Predictions for the 2021 NFL Season")
 ```
-Again, it is interesting to note the absence of three running backs on this list: Ezekiel Elliot, Saquon Barkley, and Christian McCaffrey. All three running backs, elite in today's game by most measures, suffered injury-ridden seasons, leaving my model unable to predict their scores next season adequately. This list, though, does contain new, up-and-coming running backs, potentially demonstrating the short shelf life of running backs; running backs do not stay at an elite level for a long time in the NFL.
+Again, it is interesting to note the absence of three running backs on this list: Ezekiel Elliot, Saquon Barkley, and Christian McCaffrey. All three running backs, elite in today's game by most measures, suffered injury-plagued seasons, leaving my model unable to predict their scores next season adequately. This list, though, does contain new, up-and-coming running backs, potentially demonstrating the short shelf life of running backs; running backs do not stay at an elite level for a long time in the NFL.
 
 
 ### TE
@@ -214,14 +222,14 @@ Similar to the situation for the quarterback position, yardage totals are a more
 
 ```{r}
 final_te <- read.csv("te_predictions.csv")[, 2:3]
-kable(head(final_te, 10), caption = "TE Predictions for Next Year")
+kable(head(final_te, 10), caption = "TE Predictions for the 2021 NFL Season")
 ```
 The interesting part of these predictions occur at slots *(1)*, *(2)*, and *(5)*. Travis Kelce and Darren Waller are predicted to *massively* outclass their fellow tight ends, placing themselves as a viable option for early-round picks (they appear to be *significantly better* than the rest of the pack). I also highlighted George Kittle because Kittle missed *a lot* of games this season with injuries, yet is still predicted to be fifth (right in the midst of the pack). Intuitively, I would think that, had Kittle played a complete season, his prediction for the 2021 NFL season would be on par with Waller and Kelce, in a higher echelon than other tight ends. Outside of the top 2 (and Kittle, had he played a full season), there appears to be very little separating the tight ends from one another.
 
 
 ### WR
 
-The WR model ended up being a ridge regression model after a response variable transformation; it had the lowest MSE of all potential models (2279.374). 
+Of the nine models I considered for the wide receiver position, the best model was a ridge regression model after a response variable transformation (i.e., transforming $y$ into $\log(y)$ before running the ridge regression algorithm); it had the lowest MSE of all potential candidate models (2279.374). 
 
 ```{r}
 colnames(useful_wr_data)[1] <- "val_preds"
@@ -252,20 +260,22 @@ barplot(betas$Coefficient, ylim = c(-0.002, 0.008),
 abline(h = 0)
 ```
 
-Of the six most influential variables, five seem to make sense, both with respect to size as well as sign. More receiving yards, receptions, and PPR points tend to indicate higher levels of dependable future success, while more targets and older age indicate a decrease in production.[^5] The one suprising statistic that found its way into the mix was yards per rush attempt: this statistic does not typically affect wide receivers, as they rarely run the ball; this might indicate, though, a potential increase in the usage of wide receivers in the offense through plays like the jet sweep.
+\pagebreak
+
+Of the six most influential variables, five seem to make sense, both with respect to size as well as sign. More receiving yards, receptions, and PPR points tend to indicate higher levels of dependable future success, while more targets and older age indicate a decrease in production.[^5] The one surprising statistic that found its way into the mix was yards per rush attempt: this statistic does not typically affect wide receivers, as they rarely run the ball; this might indicate, though, a potential increase in the usage of wide receivers in the offense through plays like the jet sweep. However, this could also be the result of a confounding variable which I have omitted in my analysis, as there might also be a link between how often a wide receiver runs the ball and a third variable that explains the increase in PPR scores.
 
 [^5]: Targets and receptions are correlated, so if a player gets more receptions *and* targets, there is a net-positive impact (since receptions have greater impact). However, if a player has more targets but is unable to convert those targets into receptions, he will be seen as a less reliable player and thus less likely to succeed in the following season.
 
 ```{r}
 final_wr <- read.csv("wr_predictions.csv")[, 2:3]
-kable(head(final_wr, 10), caption = "WR Predictions for Next Year")
+kable(head(final_wr, 10), caption = "WR Predictions for the 2021 NFL Season")
 ```
 
-
+For the wide receivers, there are no great surprises, as the players on this list are young and valuable assets to their respective teams. Similar to the running back position, there is the absence of two great players--Julio Jones and Michael Thomas--who both struggled with injuries during the 2020 season. Nonetheless, similar to the running back predictions, many of the players on this top 10 list are young and athletic players whose physical talents allow them to perform to their full potential
 
 ## Conclusion
 
-One interesting aspect of the four models was the difference in what was considered "the best MSE" (i.e., the lowest MSE of the possible models). The quarterback models hovered around 3000, running backs around 5500, wide receivers around 2500, and tight ends around 1300. Intuitively, this might indicate that the running back position is the "least predictable," but we have to consider the total variation present in the data set (i.e., the mean squared deviations of the validation set)[^4]. Therefore, a better way to assess the "strength" of each model would be to look at the models as a ratio with the mean squared deviations.
+After constructing the four primary models, I wanted to see how they compared to one another. To do this, I decided to look at the difference in what was considered "the best MSE" (i.e., the lowest MSE of the possible models) for each model; I noticed that it varied by position. The quarterback models hovered around 3000, running backs around 5500, wide receivers around 2500, and tight ends around 1300. Intuitively, this might indicate that the running back position is the "least predictable," but we have to consider the total variation present in the data set (i.e., the mean squared deviations of the validation set)[^4]. Therefore, a better way to assess the "strength" of each model would be to look at the models as a ratio with the mean squared deviations.
 
 ```{r}
 qb_ratio <- qb_mses[8] / qb_val_mse
@@ -276,7 +286,7 @@ ratios <- data.frame(Position = c("QB", "RB", "TE", "WR"), Ratio = c(qb_ratio, r
 kable(ratios, row.names = FALSE, caption = "Ratio of Model MSE to Mean Squared Deviations")
 ```
 
-One interesting note is that, with respect to predicting the actual score for each quarterback next season, the "best" model actually performs *worse* than if we simply predicted the mean for each player (since the ratio is greater than 1). However, we have to take two things into consideration: *(1)* we do not know next year's average PPR scores--so that is a futile exercise--and *(2)* the goal of this analysis is not only to predict absolute predictions for each player, but also his performance *relative to his peers*. Therefore, if we simply predicted the mean for each player, we would be unable to see which players would perform better than their counterparts (and by how much).
+With respect to predicting the actual score for each quarterback next season, the "best" model actually performs *worse* than if we simply predicted the mean for each player (since the ratio is greater than 1). However, we have to take two things into consideration: *(1)* we do not know next year's average PPR scores--so that is a futile exercise--and *(2)* the goal of this analysis is not only to predict absolute predictions for each player, but also his performance *relative to his peers*. Therefore, if we simply predicted the mean for each player, we would be unable to see which players would perform better than their counterparts (and by how much).
 
 Another thing to take into account is that the RB position, which had the highest absolute validation MSE, was actually the second best with respect to relative MSE (after the tight end position). This shows us that, for our validation data set, there tended to be more variability at the running back position *for the given set of players*[^4], which is why we saw higher MSE values at the running back position in the models.
 
@@ -298,13 +308,19 @@ kable(team[, c(1:2, 4)], row.names = FALSE, caption = "Best Potential Team")
 ```
 
 
-The above table is an ideal, as it is extremely unlikely--if not impossible--for a manager in a twelve-team league to snag all of these players. Instead, managers have to choose players based on who is still available at the time of their pick. Returning back to a statement I made earlier in this paper, there are many ways to choose prioritizing a position. Personally, I prefer the method of the "drop off"--seeing which position has the largest difference between the top two available players and drafting at that specified position--but this is a subjective approach not backed by statistical analysis. One statistically-supported claim I can make, though, is that the typical strategy of prioritizing running backs and wide receivers solely because they possess more variability than quarterbacks and tight ends is not entirely founded in statistics; I have shown that the variability present is statistically insignificant.
+The above table is an ideal, as it is extremely unlikely--if not impossible--for a manager in a twelve-team league to snag all of these players. Instead, managers have to choose players based on who is still available at the time of their pick.[^12] Returning back to a statement I made earlier in this paper, there are many ways to choose prioritizing a position. Personally, I prefer the method of the "drop off"--seeing which position has the largest difference between the top two available players and drafting at that specified position--but this is a subjective approach not backed by statistical analysis. One statistically-supported claim I can make, though, is that the typical strategy of prioritizing running backs and wide receivers solely because they possess more variability than quarterbacks and tight ends is not entirely founded in statistics; I have shown that the variability present is statistically insignificant.
+
+[^12]: This paper showed the top 10 predictions at each position. For a full list of predictions for next season for each position, see the GitHub repository (https://github.com/ethan-allavarpu/stats-199).
+
+\newpage
 
 # Further Analysis
 
 While I have performed a strong amount of analysis, there still exist some gaps in my analysis which could, if implemented, demonstrate improvement and expansion on a well-defined model.
 
-In my predictive analysis, I considered a player's performance in the season prior in order to predict his performance in the subsequent season. While this style of analysis accounts for most of the variability, it does not account for sustained performance over time. This issue becomes prevalent when a strong player suffers an injury that leaves him sidelined for most of (or the entirety of) the season (such as Christian McCaffrey or Saquon Barkley during the 2020 NFL season), leaving little to no data for the next season. However, intuition tells us that these players would likely play well next season. In subsequent analyses, I would consider some aspect of time-series analysis, with which I am not too familiar at the moment, *(1)* to account for season-by-season improvement and *(2)* to help lessen the impact of an injury in a given season.
+In my predictive analysis, I considered a player's performance in the season prior in order to predict his performance in the subsequent season. While this style of analysis accounts for most of the variability, it does not account for sustained performance over time. This issue becomes prevalent when a strong player suffers an injury that leaves him sidelined for most of (or the entirety of) the season (such as Christian McCaffrey or Saquon Barkley during the 2020 NFL season), leaving little to no data for the next season. However, intuition tells us that these players would likely play well next season. In subsequent analyses, I would consider some aspect of time-series analysis  *(1)* to account for season-by-season improvement and *(2)* to help lessen the impact of an injury in a given season.
+
+A player's performance is not only affected by injuries, but also by the team for which that player plays. There are interactions between the players on offensive-minded teams--for example, the Kansas City Chiefs would have players that built on one another's successes--and switching teams via free agency--a new player would have less chemistry with the rest of the team and, in turn, less likely to perform at the same level as he did on his former team.
 
 Another instance in which predictions become impossible with my model is for incoming rookies (first-year NFL players). These players may have played exceptionally in college, but it is difficult to account for a potential drop off in performance as a result of a new league as well as stronger competition, which is why I based my predictions on prior performance *in the NFL*. Unfortunately, as a result of this decision, I cannot predict the performance of rookies for the upcoming seasons. To resolve this issue, one thing I may consider in the future is to establish a separate model for first-year players that would be based on their pre-NFL statistics, such as college performance and the NFL Combine. However, I found this unsuitable for predicting fantasy football success in general because I would have two separate models--one for continuing players and another for rookies--which would create conflicts when trying to merge predictions, which already was an issue with my four separate models by position.
 
@@ -316,7 +332,14 @@ Lastly, there are a few positions which I did not consider in my analysis which 
 
 There are also two other "positions" in a fantasy football lineup: team defense (D/ST) and a kicker (K). I didn't consider these positions because they have less of an impact on a manager's success than the four core positions (and, as such, managers tend to choose these positions in the last two-three rounds of a fantasy football draft). I could dive deeper in another analysis, but I found it insignificant to the main question I hoped to answer, so I omitted these positions for the purposes of this paper.
 
-# Links
+\newpage
+
+## Links
 
   - GitHub Repository: https://github.com/ethan-allavarpu/stats-199 
-  - 
+  - Pro Football Reference: https://www.pro-football-reference.com/years/2020/fantasy.htm
+  - ESPN: https://www.espn.com
+  
+## Acknowledgments
+
+*I would like to acknowledge the help of Professor Michael Tsiang and Professor Miles Chen in the development of the research discussed in this paper and the paper itself. Professor Michael Tsiang helped guide the process and provide help on how to consider various methods both for modeling as well as defining success for the purposes of this research. Professor Miles Chen offered some tips on how to improve my model and potential variables and interactions to consider for improved performance.* 
