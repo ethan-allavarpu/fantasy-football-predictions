@@ -2,13 +2,13 @@
 
 library(knitr)
 library(MASS)
-library(alr3)
+library(alr4)
 library(leaps)
 library(dplyr)
 
 
 
-source("data_readin_clean.R")
+source("code/data_readin_clean.R")
 
 
 
@@ -268,4 +268,4 @@ final_preds <- round(predict(te_best, final_x, s = te_lambda), 1)
 final_preds <- cbind(start_ff_test %>% filter(position == "TE") %>% dplyr::select(player), final_preds)
 names(final_preds) <- c("Player", "Predictions")
 final_preds <- arrange(final_preds, desc(Predictions))
-# write.csv(final_preds, file = "te_predictions.csv")
+# write.csv(final_preds, file = "data/processed/te_predictions.csv")

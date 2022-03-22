@@ -2,10 +2,10 @@
 
 library(knitr)
 library(MASS)
-library(alr3)
+library(alr4)
 library(leaps)
 library(dplyr)
-source("data_readin_clean.R")
+source("code/data_readin_clean.R")
 
 best_k_means <- function(data, min_k, max_k) {
   if (min_k > max_k) {
@@ -289,4 +289,4 @@ final_preds <- round(exp(predict(qb_best, final_x, s = lambda_1se)), 1)
 final_preds <- cbind(start_ff_test %>% filter(position == "QB") %>% dplyr::select(player), final_preds)
 names(final_preds) <- c("Player", "Predictions")
 final_preds <- arrange(final_preds, desc(Predictions))
-# write.csv(final_preds, file = "qb_predictions.csv")
+# write.csv(final_preds, file = "data/processed/qb_predictions.csv")

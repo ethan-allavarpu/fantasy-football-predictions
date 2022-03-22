@@ -3,7 +3,7 @@ length(ff_scores) <- 11
 years <- 2010:2020
 names(ff_scores) <- paste("year_", 2010:2020, sep = "")
 for (i in seq_along(ff_scores)) {
-  ff_data <- read.csv(paste(years[i], ".csv", sep = ""),
+  ff_data <- read.csv(paste("data/raw/", years[i], ".csv", sep = ""),
                       header = TRUE, stringsAsFactors = FALSE)
   ## Clean player names (remove punctuation after names)
   players <- ff_data$Player

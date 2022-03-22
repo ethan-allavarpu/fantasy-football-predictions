@@ -1,7 +1,7 @@
 # Variance by Position
 
 library(dplyr)
-source("data_readin_clean.R")
+source("code/data_readin_clean.R")
 
 ## See what distributions look like
 col_scheme <- rgb(c(0, 0.5, 0, 0), c(0, 0, 0.5, 0), c(0, 0, 0, 0.5), alpha = 0.5)

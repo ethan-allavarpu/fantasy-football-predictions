@@ -7,6 +7,7 @@ output:
     toc: true
     toc_depth: 1
     number_sections: false
+    keep_tex: true
   self-contained: true
 ---
 
@@ -15,14 +16,14 @@ knitr::opts_chunk$set(echo = FALSE, comment = NA, fig.align = "center", out.widt
 options(digits = 4)
 library(knitr)
 library(MASS)
-library(alr3)
+library(alr4)
 library(leaps)
 library(dplyr)
-source("data_readin_clean.R")
-source("qb_preds.R")
-source("rb_preds.R")
-source("wr_preds.R")
-source("te_preds.R")
+source("code/data_readin_clean.R")
+source("code/qb_preds.R")
+source("code/rb_preds.R")
+source("code/wr_preds.R")
+source("code/te_preds.R")
 ```
 
 
@@ -157,7 +158,7 @@ Contextually, quarterbacks do not receive as many points for a touchdown pass (4
 Utilizing this model, I predicted the outcomes for next year's fantasy football leaders based on their results from the 2020 NFL Season:
 
 ```{r}
-final_qb <- read.csv("qb_predictions.csv")[, 2:3]
+final_qb <- read.csv("data/processed/qb_predictions.csv")[, 2:3]
 kable(head(final_qb, 10), caption = "QB Predictions for the 2021 NFL Season")
 ```
 
@@ -187,7 +188,7 @@ From the above plot, it appears that the most influential feature is the number 
 Taking these factors into account, here are the predictions for next season's running backs:
 
 ```{r}
-final_rb <- read.csv("rb_predictions.csv")[, 2:3]
+final_rb <- read.csv("data/processed/rb_predictions.csv")[, 2:3]
 kable(head(final_rb, 10), caption = "RB Predictions for the 2021 NFL Season")
 ```
 Again, it is interesting to note the absence of three running backs on this list: Ezekiel Elliot, Saquon Barkley, and Christian McCaffrey. All three running backs, who are elite in today's game by most measures, suffered injury-plagued seasons, leaving my model unable to predict their scores next season adequately. This list, though, does contain new, up-and-coming running backs, potentially demonstrating the short shelf life of running backs; running backs do not stay at an elite level for a long time in the NFL.
@@ -221,7 +222,7 @@ $$
 Similar to the situation for the quarterback position, yardage totals are a more reliable demonstration of a player's consistency than touchdowns, so it makes sense that the model chose to emphasize that statistic. Players with more receiving yards likely receive more targets and receptions as well, placing themselves as volume options within a given offense, as highlighted by the predictions for TEs next year:
 
 ```{r}
-final_te <- read.csv("te_predictions.csv")[, 2:3]
+final_te <- read.csv("data/processed/te_predictions.csv")[, 2:3]
 kable(head(final_te, 10), caption = "TE Predictions for the 2021 NFL Season")
 ```
 The interesting part of these predictions occurs at slots *(1)*, *(2)*, and *(5)*. Travis Kelce and Darren Waller are predicted to *massively* outclass their fellow tight ends, placing themselves as a viable option for early-round picks (they appear to be *significantly better* than the rest of the pack). I also highlighted George Kittle because Kittle missed *a lot* of games this season with injuries, yet is still predicted to be fifth (in the middle of the pack). Intuitively, I think that had Kittle played a complete season, his prediction for the 2021 NFL season would be on par with Waller and Kelce, in a higher echelon than other tight ends. Outside of the top 2 (and Kittle, had he played a full season), there appears to be very little separating the tight ends from one another.
@@ -267,7 +268,7 @@ Of the six most influential variables, five seem to make sense, regarding both s
 [^5]: Targets and receptions are correlated, so if a player gets more receptions *and* targets, there is a net-positive impact (since receptions have a greater impact). However, if a player has more targets but is unable to convert those targets into receptions, he will be seen as a less reliable player and thus less likely to succeed in the following season.
 
 ```{r}
-final_wr <- read.csv("wr_predictions.csv")[, 2:3]
+final_wr <- read.csv("data/processed/wr_predictions.csv")[, 2:3]
 kable(head(final_wr, 10), caption = "WR Predictions for the 2021 NFL Season")
 ```
 
